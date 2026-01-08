@@ -1,0 +1,100 @@
+package cs1302.api;
+
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.util.Properties;
+
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+
+
+/**
+ * This is for the Nutrition API
+ * It sends out the request and creates the right input for it as well.
+ */
+public class NutritionApi {
+
+    private static final HttpClient CLIENT = HttpClient.newHttpClient();
+    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
+
+    private final String appId;
+    private final String appKey;
+
+
+    private static final String DETAILS_ENDPOINT =
+        "https://api.edamam.com/api/nutrition-details";
+
+    /**
+     * gets keys from config.
+     * Then it puts into it into variables to authenticate.
+     */
+    public NutritionApi() {
+        String path = "resources/config.properties";
+        Properties props = new Properties();
+
+        try (FileInputStream fin = new FileInputStream(path)) {
+
+            props.load(fin);
+
+            this.appId  = props.getProperty("edamam.nutrition.app_id");
+            this.appKey = props.getProperty("edamam.nutrition.app_key");
+
+            if (appId == null || appKey == null) {
+                throw new RuntimeException("Missing nutrition API credentials");
+            }
+
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    /** 
+     * one request for all of the ingredients at once.
+     * Before I was doing one for each but that caused issues.
+     * @param ingredients it takes in ingrediants from recipe.
+     * @return NutritionResponse This gives out the infomation in json formatting
+     */
+    public NutritionResponse analyzeIngredients(String[] ingredients)
+            throws IOException, InterruptedException {
+
+        // Build JSON 
+        StringBuilder json = new StringBuilder();
+        json.append("{\"title\":\"Recipe\",\"ingr\":[");
+
+        for (int i = 0; i < ingredients.length; i++) {
+            json.append("\"").append(ingredients[i]).append("\"");
+            if (i < ingredients.length - 1) {
+                json.append(",");
+            }
+        }
+        json.append("]}");
+
+        // building actual request
+        HttpRequest req = HttpRequest.newBuilder()
+            .uri(URI.create(DETAILS_ENDPOINT + "?app_id=" + appId + "&app_key=" + appKey))
+            .header("Content-Type", "application/json")
+            .POST(HttpRequest.BodyPublishers.ofString(json.toString()))
+            .build();
+
+        HttpResponse<String> resp =
+            CLIENT.send(req, HttpResponse.BodyHandlers.ofString());
+
+        if (resp.statusCode() != 200) {
+            System.out.println("Nutrition API error: status " + resp.statusCode());
+            System.out.println("Sent JSON: " + json.toString());
+            return null;
+        }
+        
+        String jsonResponse = resp.body();
+        /**jsonResponse = jsonResponse.replace("\"ENERC_KCAL\"", "\"enercKcal\"");
+        jsonResponse = jsonResponse.replace("\"FAT\"", "\"fat\"");
+        jsonResponse = jsonResponse.replace("\"CHOCDF\"", "\"chocdf\"");
+        jsonResponse = jsonResponse.replace("\"PROCNT\"", "\"procnt\"");
+        **/
+        return GSON.fromJson(jsonResponse, NutritionResponse.class);
+    }
+}
