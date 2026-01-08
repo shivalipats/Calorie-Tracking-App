@@ -1,0 +1,95 @@
+package cs1302.api;
+
+import com.google.gson.annotations.SerializedName;
+import java.util.Map;
+
+
+/**
+* This class represents the response from the Nutrition Api Edamam.
+* It mirrors the json strucurre and helps with converting.
+*/
+public class NutritionResponse {
+
+    public double calories;
+    //calories for each meal.
+
+    
+
+
+    // ingrediants array.
+    public Ingredient[] ingredients; 
+    
+    @SerializedName("totalNutrients")
+    public Map<String, Nutrient> totalNutrients;
+
+    
+    /** Helper method to get nutrient quantity.
+    * @param code API code for each nutrient.
+    * @return double returns the nutrients.
+    */
+    public double getNutrient(String code) {
+        if (totalNutrients == null) { 
+            return -1;
+        }
+
+        Nutrient n = totalNutrients.get(code);
+        if (n == null) { 
+            return -1;
+        }
+        return n.quantity;
+    }
+
+    
+    // single line from list.
+    /** 
+    * Contains Ingrediants.
+    */
+    public static class Ingredient {
+        public String text;
+        public ParsedIngredient[] parsed;
+    }
+    
+    //more info about the ingrediant
+    /** 
+    * This is the parsed ingrediant.
+    * Broken into different pieces and attributes.
+    */
+    public static class ParsedIngredient {
+        public double quantity;
+        public String measure;
+        public String food;
+        public String foodId;
+        public NutrientInfo nutrients;
+    }
+
+    // macro information
+    
+    /** 
+    * Macro Information.
+    * For this I had to use serialized naming.
+    * his is because it needs to be represented a certain way for transmission.
+    */
+    public static class NutrientInfo {
+        
+        @SerializedName("ENERCKCAL")
+        public Nutrient enercKcal;
+
+        @SerializedName("FAT")
+        public Nutrient fat;
+
+        @SerializedName("CHOCDF")
+        public Nutrient chocDf;
+
+        @SerializedName("PROCNT")
+        public Nutrient procnt;
+    }
+
+    /** 
+    * This contains how much of each nutrient/item there is.
+    */
+    public static class Nutrient {
+        public String label;
+        public double quantity;
+        public String unit;
+    }
+}
