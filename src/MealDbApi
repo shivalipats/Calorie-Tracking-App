@@ -1,0 +1,190 @@
+package cs1302.api;
+
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+* This class represents MealDbApi
+* It contains the base and then what is added on to the http request.
+*/
+public class MealDbApi {
+
+    private static final HttpClient CLIENT = HttpClient.newHttpClient();
+    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
+
+    private static final String BASE = "https://www.themealdb.com/api/json/v1/1";
+
+    /** Get list of meals by cuisine/area . 
+    * @param area this is the type of cuisine they choose.
+    * @return MealSummary[] this returns a list of meals under that cuisine.
+    */
+    public MealSummary[] getMealsByArea(String area) {
+        try {
+            String url = BASE + "/filter.php?a=" + area.replace(" ", "%20");
+
+            HttpRequest req = HttpRequest.newBuilder()
+                .uri(URI.create(url))
+                .GET()
+                .build();
+
+            HttpResponse<String> resp =
+                CLIENT.send(req, HttpResponse.BodyHandlers.ofString());
+
+            if (resp.statusCode() != 200) {
+                System.err.println("MealDB filter error: " + resp.statusCode());
+                return new MealSummary[0];
+            }
+
+            FilterResponse fr = GSON.fromJson(resp.body(), FilterResponse.class);
+            if (fr == null || fr.meals == null) {
+                return new MealSummary[0];
+            }
+            return fr.meals;
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return new MealSummary[0];
+        }
+    }
+
+    /** Get full details for one meal. 
+    * @param idMeal this is the id of the meal it is where you get ingrediants.
+    * @return MealDetail meal details like ingrediants
+    */
+    public MealDetail getMealDetails(String idMeal) {
+        try {
+            String url = BASE + "/lookup.php?i=" + idMeal;
+
+            HttpRequest req = HttpRequest.newBuilder()
+                .uri(URI.create(url))
+                .GET()
+                .build();
+
+            HttpResponse<String> resp =
+                CLIENT.send(req, HttpResponse.BodyHandlers.ofString());
+
+            if (resp.statusCode() != 200) {
+                System.err.println("MealDB lookup error: " + resp.statusCode());
+                return null;
+            }
+
+            LookupResponse lr = GSON.fromJson(resp.body(), LookupResponse.class);
+            if (lr == null || lr.meals == null || lr.meals.length == 0) {
+                return null;
+            }
+            return lr.meals[0];
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    /** Wrapper for filter result. */
+    private static class FilterResponse {
+        MealSummary[] meals;
+    }
+
+    /** Wrapper for lookup result. */
+    private static class LookupResponse {
+        MealDetail[] meals;
+    }
+
+    /**  info used in the list view. */
+    public static class MealSummary {
+        public String idMeal;
+        public String strMeal;
+        //public String strMealThumb;  decided not to show image
+
+        @Override
+        public String toString() {
+            return strMeal; // how it shows in the ListView
+        }
+    }
+
+    /** Full meal details including ingredients and measures. */
+    public static class MealDetail {
+        public String idMeal;
+        public String strMeal;
+        public String strArea;
+        public String strCategory;
+        public String strInstructions;
+        public String strMealThumb;
+        // up to 20 ingredients + measures
+        // mealdb has max of 20 and ones empty are disregarded
+        public String strIngredient1, strIngredient2;
+        public String strIngredient3, strIngredient4, strIngredient5;
+        public String strIngredient6, strIngredient7, strIngredient8 ;
+        public String strIngredient9, strIngredient10;
+        public String strIngredient11, strIngredient12, strIngredient13;
+        public String strIngredient14, strIngredient15;
+        public String strIngredient16, strIngredient17, strIngredient18;
+        public String strIngredient19, strIngredient20;
+
+        public String strMeasure1, strMeasure2, strMeasure3, strMeasure4, strMeasure5;
+        public String strMeasure6, strMeasure7, strMeasure8, strMeasure9, strMeasure10;
+        public String strMeasure11, strMeasure12, strMeasure13, strMeasure14, strMeasure15;
+        public String strMeasure16, strMeasure17, strMeasure18, strMeasure19, strMeasure20;
+        
+        /** Build ingredient strings like "2 cups flour" for Edamam. 
+        * @return String list of ingredients.
+        */
+        public List<String> toIngredientLines() {
+            List<String> list = new ArrayList<>();
+            String[] ings = {
+                strIngredient1, strIngredient2, strIngredient3, strIngredient4, strIngredient5,
+                strIngredient6, strIngredient7, strIngredient8, strIngredient9, strIngredient10,
+                strIngredient11, strIngredient12, strIngredient13, strIngredient14, strIngredient15,
+                strIngredient16, strIngredient17, strIngredient18, strIngredient19, strIngredient20
+            };
+            String[] meas = {
+                strMeasure1, strMeasure2, strMeasure3, strMeasure4, strMeasure5,
+                strMeasure6, strMeasure7, strMeasure8, strMeasure9, strMeasure10,
+                strMeasure11, strMeasure12, strMeasure13, strMeasure14, strMeasure15,
+                strMeasure16, strMeasure17, strMeasure18, strMeasure19, strMeasure20
+            };
+            for (int i = 0; i < ings.length; i++) {
+                String ing = ings[i];
+
+                // Skip if null or empty
+                if (ing == null) { 
+                    continue; 
+                }
+                ing = ing.trim();
+                if (ing.isEmpty()) {
+                    continue;
+                }
+                ;
+
+                // Get measurement )
+                String m = "";
+                if (i < meas.length) {
+                    if (meas[i] != null) {
+                        m = meas[i];
+                    }
+                }
+                m = m.trim();
+
+                //formatting the final line
+                String line;
+                if (m.isEmpty()) {
+                    line = ing;
+                } else {
+                    line = m + " " + ing;
+                }
+
+                list.add(line);
+            }
+            return list;
+        }
+    }
+}
